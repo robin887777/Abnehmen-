@@ -186,6 +186,15 @@
   .stat-table tr:last-child td{border-bottom:none;}
   .stat-table td:first-child{color:var(--muted);}
   .stat-table td:not(:first-child){text-align:right; font-weight:800;}
+  .cf{position:fixed;top:-30px;z-index:200;font-size:22px;animation:cfall 2.6s ease-in forwards;pointer-events:none;}
+  @keyframes cfall{to{transform:translateY(105vh) rotate(340deg);opacity:.15;}}
+  .ach-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .ach{background:var(--card2);border-radius:10px;padding:10px 4px;text-align:center;}
+  .ach .i{font-size:22px;}
+  .ach .n{font-size:9.5px;color:var(--muted);margin-top:3px;line-height:1.2;}
+  .ach.locked{opacity:.32;filter:grayscale(1);}
+  .wbtn{width:32px;height:40px;border:none;background:var(--card2);border-radius:8px;font-size:18px;cursor:pointer;}
+  .wbtn.off{opacity:.22;}
 </style>
 </head>
 <body>
@@ -298,6 +307,12 @@
     </div>
 
     <div class="card">
+      <h3>💧 Wasser <span style="color:var(--muted);font-size:11px;font-weight:700;">· Ziel 2,5 L</span></h3>
+      <div id="waterRow" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      <div id="waterLbl" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
       <h3>Aktivität & Verbrauch heute</h3>
       <div class="row" style="margin-bottom:8px;">
         <input class="inp" id="burnedInput" type="number" inputmode="numeric" placeholder="Verbrauch kcal (Apple Health)" onchange="setDayVal('burned',this.value)">
@@ -319,8 +334,9 @@
     <div class="card" style="text-align:center;">
       <div style="font-size:13px;color:var(--muted);">Dein Tagesziel</div>
       <div style="font-size:22px;font-weight:900;color:var(--orange);"><span id="planGoal">–</span> kcal · <span id="planProt">–</span> g Protein</div>
-      <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Pro Mahlzeit eine Option wählen · „+" trägt sie direkt ein</div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">Täglich 3 neue Vorschläge pro Mahlzeit aus <span id="poolCount">700+</span> Gerichten · 🎲 würfelt neu · ❤️ speichert als Favorit</div>
     </div>
+    <div id="favList"></div>
     <div id="planList"></div>
   </div>
 </div>
@@ -349,6 +365,7 @@
       <h3>Verlauf <span style="color:var(--muted);font-size:11px;font-weight:700;">· Orange = Messung, Weiß = 7-Tage-Trend</span></h3>
       <canvas id="weightChart" class="chart" width="640" height="360"></canvas>
       <div class="prog-box" id="prognose">Trag regelmäßig dein Gewicht ein – nach ein paar Einträgen erscheint hier deine Prognose.</div>
+      <div class="prog-box" id="bmiBox" style="margin-top:8px;display:none;"></div>
       <div id="weightList" style="margin-top:10px;"><div class="empty">Noch kein Gewicht eingetragen.</div></div>
     </div>
   </div>
@@ -357,6 +374,24 @@
 <!-- ================= STATISTIK ================= -->
 <div class="view" id="view-stats">
   <div class="section">
+    <div class="card">
+      <h3>🎯 Ziel-Erreichung</h3>
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <div style="font-size:34px;font-weight:900;color:var(--orange);" id="goalPct">–</div>
+        <div style="font-size:12px;color:var(--muted);" id="goalSub"></div>
+      </div>
+      <div class="progressbar" style="margin-top:8px;"><div id="goalBar"></div></div>
+    </div>
+    <div class="card">
+      <h3>🏁 Wochen-Challenge</h3>
+      <div id="chText" style="font-size:13px;"></div>
+      <div class="progressbar" style="margin-top:8px;"><div id="chBar"></div></div>
+      <div id="chSub" style="font-size:11.5px;color:var(--muted);margin-top:6px;"></div>
+    </div>
+    <div class="card">
+      <h3>📈 Wochen-Report</h3>
+      <div id="weekReport" style="font-size:12.5px;color:var(--muted);line-height:1.8;"></div>
+    </div>
     <div class="card" style="text-align:center;">
       <div style="font-size:12px;color:var(--muted);font-weight:700;">🔥 STREAK</div>
       <div class="streak" id="streakNum">0</div>
@@ -379,6 +414,20 @@
         <tr><td>Ø Gewicht</td><td id="wkW1">–</td><td id="wkW0">–</td></tr>
         <tr><td>Differenz</td><td colspan="2" id="wkDiff">–</td></tr>
       </table>
+    </div>
+    <div class="card">
+      <h3>Monatsvergleich</h3>
+      <table class="stat-table">
+        <tr><td></td><td>Dieser Monat</td><td>Letzter Monat</td></tr>
+        <tr><td>Trainings</td><td id="moT1">–</td><td id="moT0">–</td></tr>
+        <tr><td>Ø Kalorien</td><td id="moK1">–</td><td id="moK0">–</td></tr>
+        <tr><td>Ø Gewicht</td><td id="moW1">–</td><td id="moW0">–</td></tr>
+        <tr><td>Differenz</td><td colspan="2" id="moDiff">–</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>🏆 Erfolge</h3>
+      <div class="ach-grid" id="achList"></div>
     </div>
   </div>
 </div>
@@ -619,48 +668,120 @@ function suggest(ex,lastArr){
   return w!==null ? "Heute "+fmt1(w+2.5)+" kg probieren" : null;
 }
 
-const MEALPLAN = [
- {cat:"Frühstück", key:"fr", target:"~500 kcal", opts:[
-  {name:"Skyr-Power-Bowl", veg:true, kcal:510, prot:38, carb:70, fat:8,
-   zutaten:"300 g Skyr, 50 g Haferflocken, 1 Banane, 1 TL Honig, Zimt",
-   zub:"Skyr mit Haferflocken verrühren, Banane in Scheiben drauf, Honig und Zimt drüber. 2 Min Aufwand."},
-  {name:"Rührei-Toast", veg:true, kcal:490, prot:30, carb:32, fat:26,
-   zutaten:"3 Eier, 2 Scheiben Vollkorntoast, 1 Tomate, 10 g Butter, Schnittlauch",
-   zub:"Eier verquirlen, in Butter stocken lassen, salzen/pfeffern. Toast rösten, Tomate dazu."},
-  {name:"Overnight Oats + Proteinpulver", veg:true, kcal:500, prot:42, carb:55, fat:12,
-   zutaten:"60 g Haferflocken, 30 g Proteinpulver, 250 ml Milch (1,5 %), 100 g Beeren (TK)",
-   zub:"Abends alles verrühren, über Nacht in den Kühlschrank. Morgens Beeren drauf – fertig zum Mitnehmen."}]},
- {cat:"Mittagessen", key:"mi", target:"~700 kcal", opts:[
-  {name:"Hähnchen-Reis-Bowl", veg:false, kcal:700, prot:55, carb:75, fat:16,
-   zutaten:"200 g Hähnchenbrust, 250 g gekochter Reis, Paprika + Zucchini, 1 EL Öl, Sojasauce",
-   zub:"Hähnchen würfeln und anbraten (~6 Min), Gemüse dazu, mit Sojasauce ablöschen, auf Reis servieren. Top für Meal Prep (2–3 Tage)."},
-  {name:"Rotes Linsen-Curry", veg:true, kcal:680, prot:30, carb:95, fat:18,
-   zutaten:"100 g rote Linsen, 200 ml Kokosmilch light, 1 Zwiebel, Currypaste, 200 g gekochter Reis",
-   zub:"Zwiebel anbraten, Currypaste mitrösten, Linsen + Kokosmilch + 200 ml Wasser dazu, 12 Min köcheln. Mit Reis servieren."},
-  {name:"Thunfisch-Nudeln", veg:false, kcal:690, prot:48, carb:95, fat:10,
-   zutaten:"120 g Nudeln (roh), 1 Dose Thunfisch (eigener Saft), 250 g passierte Tomaten, Zwiebel, Knoblauch",
-   zub:"Nudeln kochen. Zwiebel + Knoblauch anbraten, Tomaten dazu, 5 Min köcheln, Thunfisch unterrühren. 15 Min, billig, viel Protein."}]},
- {cat:"Abendessen", key:"ab", target:"~700 kcal", opts:[
-  {name:"Pute mit Kartoffeln & Quark-Dip", veg:false, kcal:680, prot:58, carb:70, fat:12,
-   zutaten:"200 g Putenbrust, 400 g Kartoffeln, 150 g Magerquark, Kräuter, 1 EL Öl",
-   zub:"Kartoffeln kochen (20 Min), Pute braten (je Seite 4–5 Min). Quark mit Kräutern, Salz, etwas Wasser cremig rühren."},
-  {name:"Gemüse-Omelett mit Feta + Brot", veg:true, kcal:670, prot:40, carb:30, fat:40,
-   zutaten:"4 Eier, 100 g Feta, Paprika + Spinat, 2 Scheiben Vollkornbrot, 1 EL Öl",
-   zub:"Gemüse kurz anbraten, verquirlte Eier drübergeben, Feta zerbröseln, stocken lassen. Brot dazu."},
-  {name:"Lachs mit Süßkartoffel & Brokkoli", veg:false, kcal:700, prot:45, carb:60, fat:28,
-   zutaten:"180 g Lachsfilet, 300 g Süßkartoffel, 250 g Brokkoli, Zitrone",
-   zub:"Süßkartoffel-Spalten bei 200 °C ~25 Min in den Ofen, letzte 12–15 Min Lachs mit aufs Blech. Brokkoli dämpfen. Zitrone drüber."}]},
- {cat:"Snacks", key:"sn", target:"~500 kcal gesamt", opts:[
-  {name:"Magerquark mit Beeren", veg:true, kcal:220, prot:32, carb:15, fat:1,
-   zutaten:"250 g Magerquark, 100 g Beeren, Süßstoff/Honig nach Bedarf",
-   zub:"Verrühren, fertig. Der beste Protein-Snack fürs Geld."},
-  {name:"Proteinshake + Apfel", veg:true, kcal:250, prot:28, carb:25, fat:4,
-   zutaten:"30 g Proteinpulver, 300 ml Milch (1,5 %) oder Wasser, 1 Apfel",
-   zub:"Shaken, Apfel dazu. Ideal direkt nach dem Training."},
-  {name:"Nüsse + Banane", veg:true, kcal:280, prot:8, carb:30, fat:15,
-   zutaten:"30 g Nüsse (abwiegen!), 1 Banane",
-   zub:"Nüsse sind kaloriendicht – 30 g sind eine kleine Handvoll. Guter Snack für die Uni."}]},
+/* ================= ESSENSPOOL (generiert) ================= */
+const HP=[
+ {sn:"Hähnchen", n:"Hähnchenbrust (200 g)", k:220,p:46,c:0,f:3, veg:0},
+ {sn:"Pute", n:"Putenbrust (200 g)", k:220,p:48,c:0,f:2, veg:0},
+ {sn:"Rinderhack", n:"Rinderhack 5 % (150 g)", k:200,p:32,c:0,f:8, veg:0},
+ {sn:"Lachs", n:"Lachsfilet (180 g)", k:370,p:37,c:0,f:24, veg:0},
+ {sn:"Thunfisch", n:"Thunfisch (1 Dose, eigener Saft)", k:150,p:33,c:0,f:1, veg:0},
+ {sn:"Garnelen", n:"Garnelen (180 g)", k:150,p:34,c:1,f:2, veg:0},
+ {sn:"Eier", n:"3 Eier", k:215,p:19,c:1,f:15, veg:1},
+ {sn:"Tofu", n:"Tofu (200 g)", k:250,p:26,c:4,f:14, veg:1},
+ {sn:"Linsen", n:"Rote Linsen (100 g roh)", k:340,p:25,c:50,f:2, veg:1},
+ {sn:"Kichererbsen", n:"Kichererbsen (1 Dose)", k:300,p:15,c:42,f:6, veg:1},
+ {sn:"Feta", n:"Feta (100 g)", k:270,p:14,c:1,f:22, veg:1},
 ];
+const HC=[
+ {sn:"Reis", n:"Reis (75 g roh)", k:265,p:5,c:58,f:1},
+ {sn:"Vollkornnudeln", n:"Vollkornnudeln (100 g roh)", k:350,p:13,c:65,f:3},
+ {sn:"Kartoffeln", n:"Kartoffeln (400 g)", k:280,p:8,c:60,f:0},
+ {sn:"Süßkartoffeln", n:"Süßkartoffeln (350 g)", k:300,p:6,c:70,f:0},
+ {sn:"Couscous", n:"Couscous (80 g roh)", k:285,p:10,c:56,f:1},
+ {sn:"Quinoa", n:"Quinoa (80 g roh)", k:295,p:11,c:50,f:5},
+ {sn:"Bulgur", n:"Bulgur (80 g roh)", k:275,p:10,c:55,f:1},
+ {sn:"Vollkornbrot", n:"Vollkornbrot (2 Scheiben)", k:200,p:8,c:36,f:2},
+ {sn:"Wraps", n:"2 Wraps", k:320,p:9,c:52,f:8},
+ {sn:"Gnocchi", n:"Gnocchi (300 g)", k:400,p:10,c:80,f:4},
+];
+const HS=[
+ {mid:"-Curry", k:120,p:1,c:4,f:11, zut:"Currypaste, 100 ml Kokosmilch light, Zwiebel", zub:"Anbraten, Currypaste mitrösten, Kokosmilch angießen, 10 Min köcheln.", no:["Feta"]},
+ {mid:" in Tomatensauce", k:80,p:3,c:12,f:1, zut:"250 g passierte Tomaten, Zwiebel, Knoblauch, Basilikum", zub:"Zwiebel und Knoblauch anbraten, Hauptzutat dazu, Tomaten angießen, 8 Min köcheln.", no:[]},
+ {mid:" asiatisch", k:70,p:3,c:6,f:4, zut:"Sojasauce, Knoblauch, Ingwer, Frühlingszwiebel, Sesam", zub:"Alles scharf in der Pfanne anbraten, mit Sojasauce ablöschen.", no:["Feta"]},
+ {mid:" mediterran", k:100,p:0,c:1,f:11, zut:"1 EL Olivenöl, Zitrone, Rosmarin und Oregano", zub:"Würzen, braten oder grillen, mit Zitrone und Kräutern abschmecken.", no:[]},
+ {mid:" vom Blech", k:140,p:3,c:10,f:10, zut:"Paprika, Zucchini, 1 EL Öl", zub:"Alles auf ein Blech, 20–25 Min bei 200 °C Umluft.", no:[]},
+ {mid:"-Bowl", k:150,p:4,c:12,f:10, zut:"Gemüse-Mix (Brokkoli, Paprika), 1 EL Öl, Joghurt-Dip", zub:"Gemüse anbraten, alles in einer Bowl anrichten, Dip darüber.", no:[]},
+];
+const FB=[
+ {sn:"Skyr", n:"Skyr (300 g)", k:190,p:33,c:12,f:1, sw:1},
+ {sn:"Magerquark", n:"Magerquark (250 g)", k:170,p:30,c:10,f:1, sw:1},
+ {sn:"Porridge", n:"Porridge (60 g Haferflocken, 200 ml Milch)", k:330,p:13,c:50,f:7, sw:1},
+ {sn:"Overnight Oats", n:"Overnight Oats (60 g Hafer, 30 g Proteinpulver, 200 ml Milch)", k:440,p:37,c:52,f:8, sw:1},
+ {sn:"Protein-Pancakes", n:"Protein-Pancakes (50 g Hafer, 2 Eier, 20 g Proteinpulver)", k:400,p:35,c:38,f:12, sw:1},
+ {sn:"Griechischer Joghurt", n:"Griechischer Joghurt 2 % (250 g)", k:180,p:20,c:10,f:5, sw:1},
+ {sn:"Proteinshake", n:"Proteinshake (30 g Pulver, 300 ml Milch)", k:230,p:30,c:14,f:5, sw:1},
+ {sn:"Rührei", n:"Rührei (3 Eier)", k:215,p:19,c:1,f:15, sw:0},
+ {sn:"Hüttenkäse", n:"Hüttenkäse (200 g)", k:200,p:24,c:6,f:8, sw:2},
+ {sn:"Vollkornbrot mit Frischkäse", n:"2 Scheiben Vollkornbrot + Frischkäse", k:280,p:12,c:38,f:8, sw:0},
+];
+const FT=[
+ {n:"Banane", k:90,p:1,c:23,f:0, sw:1},
+ {n:"Beeren (150 g)", k:60,p:1,c:12,f:0, sw:1},
+ {n:"Apfel + Zimt", k:80,p:0,c:20,f:0, sw:1},
+ {n:"Honig + Zimt", k:60,p:0,c:17,f:0, sw:1},
+ {n:"Nüssen (20 g)", k:130,p:4,c:3,f:11, sw:1},
+ {n:"Erdnussbutter (1 EL)", k:95,p:4,c:3,f:8, sw:1},
+ {n:"Leinsamen + Beeren", k:110,p:3,c:10,f:6, sw:1},
+ {n:"Tomate + Schnittlauch", k:25,p:1,c:4,f:0, sw:0},
+ {n:"Käse (30 g) + Gurke", k:110,p:8,c:1,f:9, sw:0},
+ {n:"Putenschinken (50 g) + Tomate", k:80,p:12,c:2,f:3, sw:0, nv:1},
+];
+const SB=[
+ {sn:"Magerquark", n:"Magerquark (250 g)", k:170,p:30,c:10,f:1},
+ {sn:"Skyr", n:"Skyr (150 g)", k:95,p:17,c:6,f:0},
+ {sn:"Hüttenkäse", n:"Hüttenkäse (100 g)", k:100,p:12,c:3,f:4},
+ {sn:"Proteinshake", n:"Proteinshake (30 g Pulver, Wasser)", k:115,p:25,c:2,f:1},
+ {sn:"Reiswaffeln", n:"3 Reiswaffeln", k:110,p:2,c:24,f:0},
+ {sn:"Gemüsesticks", n:"Gemüsesticks (Paprika, Gurke, Karotte)", k:40,p:2,c:8,f:0},
+ {sn:"Knäckebrot", n:"2 Vollkorn-Knäckebrote", k:70,p:2,c:13,f:0},
+ {sn:"Apfel", n:"1 Apfel", k:80,p:0,c:20,f:0},
+];
+const ST=[
+ {n:"Beeren (100 g)", k:40,p:1,c:8,f:0, typ:"sw"},
+ {n:"Honig (1 TL)", k:30,p:0,c:8,f:0, typ:"sw"},
+ {n:"Nüssen (20 g)", k:130,p:4,c:3,f:11, typ:"sw"},
+ {n:"Erdnussbutter (1 EL)", k:95,p:4,c:3,f:8, typ:"sw"},
+ {n:"Hummus (2 EL)", k:100,p:3,c:6,f:7, typ:"sav"},
+ {n:"1 gekochtem Ei", k:70,p:6,c:0,f:5, typ:"sav"},
+ {n:"Käse (30 g)", k:110,p:8,c:1,f:9, typ:"sav"},
+ {n:"1 Banane", k:90,p:1,c:23,f:0, typ:"sw"},
+];
+let POOL=null;
+function buildPool(){
+  if(POOL) return POOL;
+  const haupt=[];
+  HP.forEach(p=>HC.forEach(c=>HS.forEach(st=>{
+    if(st.no.indexOf(p.sn)>-1) return;
+    haupt.push({
+      name:p.sn+st.mid+" mit "+c.sn,
+      veg:!!p.veg, kcal:p.k+c.k+st.k, prot:p.p+c.p+st.p, carb:p.c+c.c+st.c, fat:p.f+c.f+st.f,
+      zutaten:p.n+", "+c.n+", "+st.zut,
+      zub:st.zub+" Dazu "+c.sn+" nach Packungsanleitung."
+    });
+  })));
+  const fr=[];
+  FB.forEach(b=>FT.forEach(t=>{
+    if(b.sw!==2 && t.sw!==b.sw) return;
+    fr.push({name:b.sn+" mit "+t.n, veg:!t.nv, kcal:b.k+t.k, prot:b.p+t.p, carb:b.c+t.c, fat:b.f+t.f,
+      zutaten:b.n+", "+t.n, zub:"Basis zubereiten bzw. verrühren, Topping dazu – fertig in wenigen Minuten."});
+  }));
+  const savBases=["Reiswaffeln","Gemüsesticks","Knäckebrot"];
+  const sn=[];
+  SB.forEach(b=>ST.forEach(t=>{
+    const sav=t.typ==="sav", isSavB=savBases.indexOf(b.sn)>-1;
+    if(sav && !isSavB) return;
+    if(b.sn==="Gemüsesticks" && !sav) return;
+    if(b.sn==="Apfel" && (sav||t.n.indexOf("Banane")>-1||t.n.indexOf("Beeren")>-1)) return;
+    sn.push({name:b.sn+" mit "+t.n, veg:true, kcal:b.k+t.k, prot:b.p+t.p, carb:b.c+t.c, fat:b.f+t.f,
+      zutaten:b.n+", "+t.n, zub:"Zusammenstellen – fertig."});
+  }));
+  POOL={fr:fr, mi:haupt, ab:haupt, sn:sn};
+  POOL.total=fr.length+haupt.length+sn.length;
+  return POOL;
+}
+/* POOLEND */
+let planSalt={date:null};
+let recFavs=[];
 
 let state = { done:{}, weights:{} };
 let history = [];
@@ -733,6 +854,22 @@ async function loadAll(){
   try{
     const r = await stGet("profile-data");
     if(r){ profile=JSON.parse(r)||null; }
+  }catch(e){}
+  try{
+    const r = await stGet("achieve-data");
+    if(r){ unlockedAch=JSON.parse(r)||{}; }
+  }catch(e){}
+  try{
+    const r = await stGet("challenge-data");
+    if(r){ chData=JSON.parse(r)||null; }
+  }catch(e){}
+  try{
+    const r = await stGet("recipe-favs");
+    if(r){ recFavs=JSON.parse(r)||[]; }
+  }catch(e){}
+  try{
+    const r = await stGet("plan-salt");
+    if(r){ planSalt=JSON.parse(r)||{date:null}; }
   }catch(e){}
   if(!profile){ openProfile(true); }
   else{ checkAdaptive(); }
@@ -1068,6 +1205,7 @@ function renderDay(){
         <button class="meal-del" onclick="delActivity(${i})">✕</button>
       </div>
     </div>`).join("")||'<div class="empty" style="padding:6px 0;">Noch keine Aktivität heute.</div>';
+  renderWater();
   updateBilanz();
   renderHistory();
 }
@@ -1086,32 +1224,74 @@ function updateBilanz(){
 }
 
 /* ================= ESSENSPLAN ================= */
+function hashStr(x){ let h=2166136261; for(let i=0;i<x.length;i++){ h^=x.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function dailyPicks(cat){
+  const pool=buildPool()[cat];
+  const salt=(planSalt&&planSalt[cat])||0;
+  let h=hashStr(todayKey()+cat+":"+salt);
+  const picked=[], used={};
+  while(picked.length<3 && picked.length<pool.length){
+    h=Math.imul(h^(h>>>15),2246822519)>>>0;
+    const i=h%pool.length;
+    if(!used[i]){ used[i]=1; picked.push(pool[i]); }
+  }
+  return picked;
+}
+async function shuffleCat(cat){
+  if(planSalt.date!==todayKey()) planSalt={date:todayKey()};
+  planSalt[cat]=(planSalt[cat]||0)+1;
+  await saveKey("plan-salt",planSalt);
+  renderPlan();
+}
+function isFav(r){ return recFavs.some(f=>f.name===r.name); }
+async function toggleFav(cat,idx,fromFav){
+  const r=fromFav?recFavs[idx]:dailyPicks(cat)[idx];
+  if(!r)return;
+  const i=recFavs.findIndex(f=>f.name===r.name);
+  if(i>-1){ recFavs.splice(i,1); showToast("Favorit entfernt"); }
+  else{ recFavs.push({...r, cat:(fromFav?(r.cat||cat):cat)}); showToast("❤️ Als Favorit gespeichert"); }
+  await saveKey("recipe-favs",recFavs);
+  renderPlan();
+}
+async function addRecipe(cat,idx,fromFav){
+  const r=fromFav?recFavs[idx]:dailyPicks(cat)[idx];
+  if(!r)return;
+  const k=todayKey();
+  (meals[k]=meals[k]||[]).push({name:r.name, kcal:r.kcal, prot:r.prot, carb:r.carb, fat:r.fat, cat:(fromFav?(r.cat||"sn"):cat)});
+  await saveKey("nutrition-data",meals,r.name+" eingetragen! 🍽️");
+  renderMeals(); renderStats();
+}
+function recipeHtml(r,cat,idx,fromFav){
+  const ff=fromFav?1:0;
+  return `<div class="plan-opt">
+    <div class="plan-head">
+      <div class="plan-name">${esc(r.name)}</div>
+      ${r.veg?'<span class="veg">veg.</span>':''}
+      <button class="plan-add" onclick="addRecipe('${cat}',${idx},${ff})">+ ${fmt(r.kcal)}</button>
+      <button class="meal-del" style="font-size:17px;padding:4px 4px;" onclick="toggleFav('${cat}',${idx},${ff})">${isFav(r)?"❤️":"🤍"}</button>
+    </div>
+    <div class="plan-macros"><b>${r.prot} g Protein</b> · ${r.carb} g KH · ${r.fat} g Fett</div>
+    <button class="plan-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'▲ Rezept ausblenden':'▼ Rezept anzeigen'">▼ Rezept anzeigen</button>
+    <div class="plan-recipe"><b>Zutaten:</b> ${esc(r.zutaten)}<br><b>Zubereitung:</b> ${esc(r.zub)}</div>
+  </div>`;
+}
 function renderPlan(){
   document.getElementById("planGoal").textContent=fmt(profile?profile.goal:2400);
   document.getElementById("planProt").textContent=fmt(protGoal()||170);
-  const el=document.getElementById("planList");
-  el.innerHTML=MEALPLAN.map((c,ci)=>`
-    <div class="card">
-      <h3>${c.cat} <span style="color:var(--muted);font-size:11px;font-weight:700;">· ${c.target}</span></h3>
-      ${c.opts.map((o,oi)=>`
-        <div class="plan-opt">
-          <div class="plan-head">
-            <div class="plan-name">${o.name}</div>
-            ${o.veg?'<span class="veg">veg.</span>':''}
-            <button class="plan-add" onclick="addPlanMeal(${ci},${oi})">+ ${fmt(o.kcal)} kcal</button>
-          </div>
-          <div class="plan-macros"><b>${o.prot} g Protein</b> · ${o.carb} g KH · ${o.fat} g Fett</div>
-          <button class="plan-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'▲ Rezept ausblenden':'▼ Rezept anzeigen'">▼ Rezept anzeigen</button>
-          <div class="plan-recipe"><b>Zutaten:</b> ${o.zutaten}<br><b>Zubereitung:</b> ${o.zub}</div>
-        </div>`).join("")}
-    </div>`).join("");
-}
-async function addPlanMeal(ci,oi){
-  const c=MEALPLAN[ci], o=c.opts[oi];
-  const k=todayKey();
-  (meals[k]=meals[k]||[]).push({name:o.name,kcal:o.kcal,prot:o.prot,carb:o.carb,fat:o.fat,cat:c.key});
-  await saveKey("nutrition-data",meals,o.name+" eingetragen! 🍽️");
-  renderMeals(); renderStats();
+  document.getElementById("poolCount").textContent=fmt(buildPool().total);
+  if(planSalt.date!==todayKey()) planSalt={date:todayKey()};
+  const CATL={fr:["Frühstück","~500 kcal"], mi:["Mittagessen","~700 kcal"], ab:["Abendessen","~700 kcal"], sn:["Snacks","~250 kcal"]};
+  document.getElementById("favList").innerHTML = recFavs.length
+    ? `<div class="card"><h3>❤️ Deine Favoriten</h3>${recFavs.map((r,i)=>recipeHtml(r,r.cat||"sn",i,true)).join("")}</div>`
+    : "";
+  document.getElementById("planList").innerHTML=Object.keys(CATL).map(cat=>{
+    const picks=dailyPicks(cat);
+    return `<div class="card">
+      <h3 style="display:flex;align-items:center;gap:8px;">${CATL[cat][0]} <span style="color:var(--muted);font-size:11px;font-weight:700;">· ${CATL[cat][1]}</span>
+      <button class="btn-video" style="margin-left:auto;" onclick="shuffleCat('${cat}')"><span>🎲</span> Andere</button></h3>
+      ${picks.map((r,i)=>recipeHtml(r,cat,i,false)).join("")}
+    </div>`;
+  }).join("");
 }
 
 /* ================= GEWICHT ================= */
@@ -1187,6 +1367,7 @@ function drawWeightChart(){
   }
 }
 function renderPrognose(){
+  renderBMI();
   const el=document.getElementById("prognose");
   if(!profile){ el.textContent="Lege zuerst dein Profil an (⚙️ oben rechts)."; return; }
   const tr=trendSeries().filter(t=>t.kg!==null);
@@ -1255,6 +1436,12 @@ function renderStats(){
     dEl.innerHTML=`<span style="color:${d<0?'var(--green)':'var(--red)'}">${d>0?'+':''}${fmt1(d)} kg zur Vorwoche</span>`;
   } else dEl.textContent="–";
   renderStrength();
+  renderGoalCard();
+  renderMonth();
+  renderWeekReport();
+  renderChallenge();
+  renderAchievements();
+  checkAchievements();
 }
 function parseMaxW(w){
   const arr=Array.isArray(w)?w:[w];
@@ -1339,10 +1526,10 @@ function drawStatChart(){
 function renderHistory(){
   const el=document.getElementById("histList");
   const days={};
-  const ensure=k=>days[k]=days[k]||{workouts:[],mealKcal:0,acts:[],burned:0,steps:0,kg:null};
+  const ensure=k=>days[k]=days[k]||{workouts:[],mealKcal:0,acts:[],burned:0,steps:0,water:0,kg:null};
   history.forEach(h=>{ const k=new Date(h.ts).toISOString().slice(0,10); ensure(k).workouts.push(h); });
   Object.keys(meals).forEach(k=>{ const s=(meals[k]||[]).reduce((a,m)=>a+(m.kcal||0),0); if(s)ensure(k).mealKcal=s; });
-  Object.keys(dayData).forEach(k=>{ const d=dayData[k]||{}; if(d.burned||d.steps||(d.activities||[]).length){ const o=ensure(k); o.acts=d.activities||[]; o.burned=d.burned||0; o.steps=d.steps||0; } });
+  Object.keys(dayData).forEach(k=>{ const d=dayData[k]||{}; if(d.burned||d.steps||d.water||(d.activities||[]).length){ const o=ensure(k); o.acts=d.activities||[]; o.burned=d.burned||0; o.steps=d.steps||0; o.water=d.water||0; } });
   bodyWeights.forEach(w=>{ const k=new Date(w.ts).toISOString().slice(0,10); ensure(k).kg=w.kg; });
   const keys=Object.keys(days).sort().reverse();
   if(!keys.length){ el.innerHTML='<div class="empty">Noch nichts eingetragen.</div>'; return; }
@@ -1355,6 +1542,7 @@ function renderHistory(){
     if(d.mealKcal)lines.push("🍽️ Gegessen: "+fmt(d.mealKcal)+" kcal");
     if(d.burned)lines.push("🔥 Verbrauch: "+fmt(d.burned)+" kcal");
     if(d.steps)lines.push("👟 "+fmt(d.steps)+" Schritte");
+    if(d.water)lines.push("💧 "+fmt1(d.water*0.25)+" L Wasser");
     if(d.kg)lines.push("⚖️ "+fmt1(d.kg)+" kg");
     return `<div class="h-item"><div class="h-date">${date}</div><div class="h-detail">${lines.join("<br>")}</div></div>`;
   }).join("");
@@ -1392,6 +1580,7 @@ async function addPhoto(input){
 }
 async function renderPhotos(){
   const keys=await photoKeys();
+  photoCount=keys.length;
   const st=document.getElementById("photoStatus");
   const strip=document.getElementById("photoStrip");
   document.getElementById("showBtn").style.display=keys.length>=2?"block":"none";
@@ -1447,8 +1636,209 @@ async function playShow(){
 }
 function closeShow(){ clearTimeout(showTimer); document.getElementById("showOverlay").classList.remove("show"); }
 
+/* ================= WASSER ================= */
+const WATER_GOAL=10; // Gläser à 0,25 L
+function waterToday(){ const d=dayData[todayKey()]||{}; return d.water||0; }
+async function setWater(i){
+  const cur=waterToday();
+  dayObj().water = (i+1===cur) ? i : i+1;
+  await saveKey("day-data",dayData);
+  renderWater(); renderStats(); renderHistory();
+}
+function renderWater(){
+  const row=document.getElementById("waterRow");
+  if(!row) return;
+  const n=waterToday();
+  row.innerHTML=Array.from({length:WATER_GOAL},(_,i)=>
+    `<button class="wbtn${i<n?"":" off"}" onclick="setWater(${i})">💧</button>`).join("");
+  document.getElementById("waterLbl").textContent=fmt1(n*0.25)+" / 2,5 L"+(n>=WATER_GOAL?" · ✓ Ziel erreicht!":"");
+}
+
+/* ================= ZIEL & BMI ================= */
+function lostKg(){
+  if(!profile) return 0;
+  return Math.max(0, profile.weight - curWeight());
+}
+function goalPctRaw(){
+  if(!profile || profile.weight<=profile.target) return 0;
+  return (profile.weight - curWeight())/(profile.weight - profile.target)*100;
+}
+function renderGoalCard(){
+  if(!profile){ document.getElementById("goalPct").textContent="–"; return; }
+  const p=Math.max(0,goalPctRaw());
+  document.getElementById("goalPct").textContent=Math.round(Math.min(100,p))+" %";
+  document.getElementById("goalBar").style.width=Math.min(100,p)+"%";
+  document.getElementById("goalSub").textContent=fmt1(lostKg())+" von "+fmt1(profile.weight-profile.target)+" kg geschafft";
+}
+function renderBMI(){
+  const el=document.getElementById("bmiBox");
+  if(!el) return;
+  if(profile&&curWeight()){
+    const h=profile.height/100, b=curWeight()/(h*h), bt=profile.target/(h*h);
+    const cat=v=>v<18.5?"Untergewicht":v<25?"Normalgewicht":v<30?"Übergewicht":"Adipositas";
+    el.style.display="block";
+    el.innerHTML=`BMI aktuell: <b>${fmt1(b)}</b> (${cat(b)}) → Ziel-BMI: <b>${fmt1(bt)}</b> (${cat(bt)})`;
+  }
+}
+
+/* ================= WOCHEN-REPORT ================= */
+function bestStrengthGain(){
+  const wAgo=Date.now()-7*86400000;
+  const before={}, after={};
+  history.forEach(h=>h.exercises.forEach(e=>{
+    const w=parseMaxW(e.weight); if(w===null)return;
+    const m=h.ts>wAgo?after:before;
+    if(m[e.name]===undefined||w>m[e.name]) m[e.name]=w;
+  }));
+  let best=null;
+  Object.keys(after).forEach(n=>{
+    if(before[n]!==undefined && after[n]>before[n]){
+      const d=after[n]-before[n];
+      if(!best||d>best.d) best={n,d};
+    }
+  });
+  return best? best.n+" +"+fmt1(best.d)+" kg" : null;
+}
+function renderWeekReport(){
+  const el=document.getElementById("weekReport");
+  const wAgo=Date.now()-7*86400000;
+  const tr=history.filter(h=>h.ts>wAgo).length;
+  const kc=isoDaysBack(7).map(k=>(meals[k]||[]).reduce((a,m)=>a+(m.kcal||0),0)).filter(v=>v>0);
+  const avgK=kc.length?Math.round(kc.reduce((a,b)=>a+b)/kc.length):null;
+  const aNow=avg7(Date.now()), aThen=avg7(wAgo);
+  const lines=["🏋️ Trainings: <b>"+tr+"</b>"];
+  if(avgK) lines.push("🍽️ Ø Kalorien: <b>"+fmt(avgK)+"</b>"+(profile?" (Ziel "+fmt(profile.goal)+")":""));
+  if(aNow!==null&&aThen!==null){
+    const d=aNow-aThen;
+    lines.push("⚖️ Gewichtstrend: <b style='color:"+(d<0?"var(--green)":"var(--red)")+"'>"+(d>0?"+":"")+fmt1(d)+" kg</b>");
+  }
+  const sg=bestStrengthGain(); if(sg) lines.push("💪 Stärkster Zuwachs: <b>"+sg+"</b>");
+  el.innerHTML=lines.join("<br>");
+}
+
+/* ================= WOCHEN-CHALLENGE ================= */
+let chData=null;
+function mondayOf(ts){ const d=new Date(ts); d.setHours(12,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d; }
+function weekIsoDays(mon){ const a=[]; for(let i=0;i<7;i++){ a.push(new Date(mon.getTime()+i*86400000).toISOString().slice(0,10)); } return a; }
+function isoWeekKey(ts){
+  const dt=new Date(ts); dt.setHours(0,0,0,0);
+  dt.setDate(dt.getDate()+3-((dt.getDay()+6)%7));
+  const w1=new Date(dt.getFullYear(),0,4);
+  return dt.getFullYear()+"-W"+(1+Math.round(((dt-w1)/86400000-3+((w1.getDay()+6)%7))/7));
+}
+async function ensureChallenge(){
+  const wk=isoWeekKey(Date.now());
+  if(chData && chData.week===wk) return;
+  const prevDays=weekIsoDays(new Date(mondayOf(Date.now()).getTime()-7*86400000));
+  const prevSteps=prevDays.reduce((a,k)=>a+((dayData[k]||{}).steps||0),0);
+  const prevTrain=history.filter(h=>prevDays.includes(new Date(h.ts).toISOString().slice(0,10))).length;
+  const wknum=parseInt(wk.split("W")[1],10)||0;
+  const type=["train","steps","water"][wknum%3];
+  let target, text;
+  if(type==="steps"){ target=Math.max(35000, Math.round(prevSteps*1.15/1000)*1000); text="👟 Schaffe diese Woche insgesamt "+fmt(target)+" Schritte"; }
+  else if(type==="train"){ target=Math.min((prevTrain||1)+1,4); text="🏋️ Absolviere diese Woche "+target+" Trainings"; }
+  else { target=4; text="💧 Erreiche an "+target+" Tagen dein Wasserziel (2,5 L)"; }
+  chData={week:wk,type,target,text,done:false,total:(chData?chData.total||0:0)};
+  await saveKey("challenge-data",chData);
+}
+function challengeProgress(){
+  if(!chData) return 0;
+  const days=weekIsoDays(mondayOf(Date.now()));
+  if(chData.type==="steps") return days.reduce((a,k)=>a+((dayData[k]||{}).steps||0),0);
+  if(chData.type==="train") return history.filter(h=>days.includes(new Date(h.ts).toISOString().slice(0,10))).length;
+  return days.filter(k=>((dayData[k]||{}).water||0)>=WATER_GOAL).length;
+}
+async function renderChallenge(){
+  await ensureChallenge();
+  const p=challengeProgress();
+  document.getElementById("chText").innerHTML=chData.text;
+  document.getElementById("chBar").style.width=Math.min(100,p/chData.target*100)+"%";
+  const pTxt=(chData.type==="steps"?fmt(p):p)+" / "+(chData.type==="steps"?fmt(chData.target):chData.target);
+  if(!chData.done && p>=chData.target){
+    chData.done=true; chData.total=(chData.total||0)+1;
+    await saveKey("challenge-data",chData);
+    confetti(); showToast("🏁 Challenge geschafft!");
+  }
+  document.getElementById("chSub").textContent=pTxt+(chData.done?" · ✓ geschafft!":"");
+}
+
+/* ================= ERFOLGE ================= */
+let unlockedAch={}, photoCount=0;
+const ACH=[
+ {id:"t1", icon:"🏋️", name:"Erstes Training", test:()=>history.length>=1},
+ {id:"t10", icon:"🔥", name:"10 Trainings", test:()=>history.length>=10},
+ {id:"t25", icon:"💪", name:"25 Trainings", test:()=>history.length>=25},
+ {id:"t50", icon:"🏆", name:"50 Trainings", test:()=>history.length>=50},
+ {id:"s7", icon:"📆", name:"7-Tage-Streak", test:()=>calcStreak()>=7},
+ {id:"s30", icon:"🚀", name:"30-Tage-Streak", test:()=>calcStreak()>=30},
+ {id:"kg2", icon:"⚖️", name:"2 kg geschafft", test:()=>lostKg()>=2},
+ {id:"kg5", icon:"🥇", name:"5 kg geschafft", test:()=>lostKg()>=5},
+ {id:"kg10", icon:"👑", name:"10 kg geschafft", test:()=>lostKg()>=10},
+ {id:"goal", icon:"🎯", name:"Zielgewicht!", test:()=>!!profile&&goalPctRaw()>=100},
+ {id:"ph7", icon:"📷", name:"7 Fotos", test:()=>photoCount>=7},
+ {id:"ch1", icon:"🎖️", name:"1. Challenge", test:()=>!!(chData&&chData.total>=1)},
+];
+function renderAchievements(){
+  const el=document.getElementById("achList");
+  if(!el) return;
+  el.innerHTML=ACH.map(a=>
+    `<div class="ach${unlockedAch[a.id]?"":" locked"}"><div class="i">${a.icon}</div><div class="n">${a.name}</div></div>`).join("");
+}
+async function checkAchievements(){
+  const neu=[];
+  ACH.forEach(a=>{ try{ if(!unlockedAch[a.id] && a.test()){ unlockedAch[a.id]=Date.now(); neu.push(a); } }catch(e){} });
+  if(neu.length){
+    await saveKey("achieve-data",unlockedAch);
+    confetti();
+    showToast("🏆 Erfolg: "+neu[0].name);
+    renderAchievements();
+  }
+}
+function confetti(){
+  const em=["🎉","✨","💪","🔥","⭐"];
+  for(let i=0;i<26;i++){
+    const sp=document.createElement("span");
+    sp.className="cf";
+    sp.textContent=em[i%em.length];
+    sp.style.left=(Math.random()*96)+"vw";
+    sp.style.animationDelay=(Math.random()*0.5)+"s";
+    document.body.appendChild(sp);
+    setTimeout(()=>sp.remove(),3400);
+  }
+}
+
+/* ================= MONATSSTATISTIK ================= */
+function renderMonth(){
+  const now=new Date();
+  const mk=(y,m)=>{
+    const inM=ts=>{const d=new Date(ts);return d.getFullYear()===y&&d.getMonth()===m;};
+    const pfx=y+"-"+String(m+1).padStart(2,"0");
+    const kcals=Object.keys(meals).filter(k=>k.startsWith(pfx)).map(k=>(meals[k]||[]).reduce((a,x)=>a+(x.kcal||0),0)).filter(v=>v>0);
+    const ws=bodyWeights.filter(w=>inM(w.ts)).map(w=>w.kg);
+    return {
+      t: history.filter(h=>inM(h.ts)).length,
+      k: kcals.length?Math.round(kcals.reduce((a,b)=>a+b)/kcals.length):null,
+      w: ws.length?ws.reduce((a,b)=>a+b)/ws.length:null
+    };
+  };
+  const cur=mk(now.getFullYear(),now.getMonth());
+  const pd=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const prev=mk(pd.getFullYear(),pd.getMonth());
+  document.getElementById("moT1").textContent=cur.t;
+  document.getElementById("moT0").textContent=prev.t;
+  document.getElementById("moK1").textContent=cur.k!==null?fmt(cur.k)+" kcal":"–";
+  document.getElementById("moK0").textContent=prev.k!==null?fmt(prev.k)+" kcal":"–";
+  document.getElementById("moW1").textContent=cur.w!==null?fmt1(cur.w)+" kg":"–";
+  document.getElementById("moW0").textContent=prev.w!==null?fmt1(prev.w)+" kg":"–";
+  const el=document.getElementById("moDiff");
+  if(cur.w!==null&&prev.w!==null){
+    const d=cur.w-prev.w;
+    el.innerHTML=`<span style="color:${d<0?'var(--green)':'var(--red)'}">${d>0?'+':''}${fmt1(d)} kg zum Vormonat</span>`;
+  } else el.textContent="–";
+}
+
 /* ================= BACKUP ================= */
-const BK_KEYS=["workout-data","nutrition-data","bodyweight-data","day-data","exercise-config","favs-data","profile-data"];
+const BK_KEYS=["workout-data","nutrition-data","bodyweight-data","day-data","exercise-config","favs-data","profile-data","achieve-data","challenge-data","recipe-favs","plan-salt"];
 async function exportData(){
   const out={_app:"fitness-tracker",_ts:Date.now()};
   for(const k of BK_KEYS){ const v=await stGet(k); if(v) out[k]=v; }
