@@ -59,6 +59,12 @@
   select.inp{appearance:none;}
   .weight-input{width:110px;}
   .set-input{width:31%;min-width:88px;font-size:13px;padding:8px 8px;}
+  .set-group{background:var(--card2); border-radius:10px; padding:7px 9px; display:flex; flex-direction:column; gap:5px;}
+  .set-label{font-size:10px; color:var(--muted); font-weight:800; letter-spacing:.3px;}
+  .set-row{display:flex; align-items:center; gap:5px;}
+  .set-row .set-input{width:58px; min-width:0; padding:8px 6px; text-align:center;}
+  .set-row .set-input.reps{width:50px;}
+  .set-x{color:var(--muted); font-size:12px; font-weight:700;}
   .btn-video{background:var(--card2); color:var(--text); border:none; border-radius:9px;
        padding:8px 12px; font-size:12.5px; font-weight:700; cursor:pointer; text-decoration:none;
        display:inline-flex; align-items:center; gap:6px;}
@@ -214,6 +220,7 @@
   <button class="tab" id="tab-plan" onclick="showTab('plan')">🥗 Plan</button>
   <button class="tab" id="tab-weight" onclick="showTab('weight')">⚖️ Gewicht</button>
   <button class="tab" id="tab-stats" onclick="showTab('stats')">📊 Statistik</button>
+  <button class="tab" id="tab-shop" onclick="showTab('shop')">🛒 Einkauf</button>
   <button class="tab" id="tab-hist" onclick="showTab('hist')">📅 Tagebuch</button>
 </div>
 
@@ -245,6 +252,24 @@
       <button onclick="stopTimer()">Stopp</button>
     </div>
   </div>
+  <div style="margin:0 18px 12px;" class="card">
+    <h3 style="display:flex;align-items:center;gap:8px;">🎵 Musik
+      <button class="btn-video" style="margin-left:auto;" onclick="toggleMusic()"><span id="musicArrow">▼</span> <span id="musicToggleLbl">Anzeigen</span></button>
+    </h3>
+    <div id="musicBox" style="display:none;">
+      <div class="fav-row" style="margin-bottom:8px;">
+        <span class="fav-chip" onclick="setMusic('https://open.spotify.com/playlist/37i9dQZF1DX76Wlfdnj7AP')"><span>▶</span> Beast Mode</span>
+        <span class="fav-chip" onclick="setMusic('https://open.spotify.com/playlist/37i9dQZF1DX70RN3TfWWJh')"><span>▶</span> Workout</span>
+      </div>
+      <div class="row" style="margin-bottom:8px;">
+        <input class="inp" id="musicUrl" placeholder="Spotify-Link einfügen (Playlist/Album/Song)">
+        <button class="btn-small" onclick="setMusic(document.getElementById('musicUrl').value)">▶</button>
+      </div>
+      <div id="musicPlayer"></div>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:6px;">Volle Songs, wenn du im Browser bei Spotify eingeloggt bist – sonst 30-Sek.-Preview oder Öffnen in der Spotify-App.</div>
+    </div>
+  </div>
+
   <div class="list" id="exList"></div>
 </div>
 
@@ -275,17 +300,6 @@
       <div style="font-size:12.5px;color:var(--muted);line-height:1.5;">
         💡 <b style="color:var(--text);">Tipp:</b> Für die KI-Foto-Analyse schick ein Foto deines Essens an Claude im Chat – oder nutze die 🔍 Lebensmittel-Suche unten.
       </div>
-    </div>
-
-    <div class="card" id="skCard" style="display:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
-        <h3 style="margin:0;">🧺 Schlaukorb-Wochenplan</h3>
-        <select class="inp" id="skCat" style="max-width:120px;">
-          <option value="fr">Frühstück</option><option value="mi">Mittag</option>
-          <option value="ab" selected>Abend</option><option value="sn">Snack</option>
-        </select>
-      </div>
-      <div id="skContent"></div>
     </div>
 
     <div class="card">
@@ -439,6 +453,26 @@
     <div class="card">
       <h3>🏆 Erfolge</h3>
       <div class="ach-grid" id="achList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= EINKAUF ================= -->
+<div class="view" id="view-shop">
+  <div class="section">
+    <div class="card">
+      <h3>📅 Wochenplan <span style="color:var(--muted);font-size:11px;font-weight:700;">· am besten sonntags planen</span></h3>
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn-small" style="flex:1;" onclick="genWeek(false)">🎲 Neue Woche würfeln</button>
+        <button class="btn-ghost" style="flex:1;padding:9px;font-size:12.5px;border-radius:9px;" onclick="genWeek(true)">❤️ Mit Favoriten</button>
+      </div>
+      <div id="weekPlanBox"></div>
+    </div>
+    <div class="card">
+      <h3>🛒 Einkaufsliste <span style="color:var(--muted);font-size:11px;font-weight:700;">· antippen zum Abhaken</span></h3>
+      <div id="shopList"></div>
+      <div id="shopTotal" style="margin-top:12px;font-size:13px;"></div>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:8px;">Preise sind geschätzte typische Discounter-Preise, keine Tagesangebote. Gewürze, Zimt &amp; Co. nicht einzeln gelistet.</div>
     </div>
   </div>
 </div>
@@ -662,7 +696,22 @@ let exSel = {};
 const EX = slot => slot.variants[exSel[slot.id]||0] || slot.variants[0];
 const exKey = slot => slot.id+"_"+(exSel[slot.id]||0);
 const setCount = ex => parseInt(ex.sets)||3;
-function setW(id,si,v){ (state.weights[id]=state.weights[id]||[])[si]=v; }
+function parseSet(str){
+  const m=String(str||"").match(/^([\d.,]+)\s*[×x*]\s*(\d+)\s*$/i);
+  if(m) return {w:m[1], r:m[2]};
+  return {w:str||"", r:""};
+}
+function composeSet(w,r){
+  w=(w||"").trim(); r=(r||"").trim();
+  if(!w && !r) return "";
+  return r ? w+"x"+r : w;
+}
+function setW(id,si,part,v){
+  const arr=state.weights[id]=state.weights[id]||[];
+  const cur=parseSet(arr[si]);
+  cur[part]=v;
+  arr[si]=composeSet(cur.w,cur.r);
+}
 const wStr = w => !w ? "" : esc(Array.isArray(w)?w.filter(Boolean).join(", "):String(w));
 function suggest(ex,lastArr){
   if(!lastArr||!lastArr.length||ex.sets.includes(" s")) return null;
@@ -681,81 +730,81 @@ function suggest(ex,lastArr){
 
 /* ================= ESSENSPOOL (generiert) ================= */
 const HP=[
- {sn:"Hähnchen", n:"Hähnchenbrust (200 g)", k:220,p:46,c:0,f:3, veg:0},
- {sn:"Pute", n:"Putenbrust (200 g)", k:220,p:48,c:0,f:2, veg:0},
- {sn:"Rinderhack", n:"Rinderhack 5 % (150 g)", k:200,p:32,c:0,f:8, veg:0},
- {sn:"Lachs", n:"Lachsfilet (180 g)", k:370,p:37,c:0,f:24, veg:0},
- {sn:"Thunfisch", n:"Thunfisch (1 Dose, eigener Saft)", k:150,p:33,c:0,f:1, veg:0},
- {sn:"Garnelen", n:"Garnelen (180 g)", k:150,p:34,c:1,f:2, veg:0},
- {sn:"Eier", n:"3 Eier", k:215,p:19,c:1,f:15, veg:1},
- {sn:"Tofu", n:"Tofu (200 g)", k:250,p:26,c:4,f:14, veg:1},
- {sn:"Linsen", n:"Rote Linsen (100 g roh)", k:340,p:25,c:50,f:2, veg:1},
- {sn:"Kichererbsen", n:"Kichererbsen (1 Dose)", k:300,p:15,c:42,f:6, veg:1},
- {sn:"Feta", n:"Feta (100 g)", k:270,p:14,c:1,f:22, veg:1},
+ {sn:"Hähnchen", n:"Hähnchenbrust (200 g)", k:220,p:46,c:0,f:3, veg:0, cp:[["Hähnchenbrust",200,"g"]]},
+ {sn:"Pute", n:"Putenbrust (200 g)", k:220,p:48,c:0,f:2, veg:0, cp:[["Putenbrust",200,"g"]]},
+ {sn:"Rinderhack", n:"Rinderhack 5 % (150 g)", k:200,p:32,c:0,f:8, veg:0, cp:[["Rinderhack 5 %",150,"g"]]},
+ {sn:"Lachs", n:"Lachsfilet (180 g)", k:370,p:37,c:0,f:24, veg:0, cp:[["Lachsfilet (TK)",180,"g"]]},
+ {sn:"Thunfisch", n:"Thunfisch (1 Dose, eigener Saft)", k:150,p:33,c:0,f:1, veg:0, cp:[["Thunfisch-Dose",1,"Stk"]]},
+ {sn:"Garnelen", n:"Garnelen (180 g)", k:150,p:34,c:1,f:2, veg:0, cp:[["Garnelen (TK)",180,"g"]]},
+ {sn:"Eier", n:"3 Eier", k:215,p:19,c:1,f:15, veg:1, cp:[["Eier",3,"Stk"]]},
+ {sn:"Tofu", n:"Tofu (200 g)", k:250,p:26,c:4,f:14, veg:1, cp:[["Tofu",200,"g"]]},
+ {sn:"Linsen", n:"Rote Linsen (100 g roh)", k:340,p:25,c:50,f:2, veg:1, cp:[["Rote Linsen",100,"g"]]},
+ {sn:"Kichererbsen", n:"Kichererbsen (1 Dose)", k:300,p:15,c:42,f:6, veg:1, cp:[["Kichererbsen-Dose",1,"Stk"]]},
+ {sn:"Feta", n:"Feta (100 g)", k:270,p:14,c:1,f:22, veg:1, cp:[["Feta",100,"g"]]},
 ];
 const HC=[
- {sn:"Reis", n:"Reis (75 g roh)", k:265,p:5,c:58,f:1},
- {sn:"Vollkornnudeln", n:"Vollkornnudeln (100 g roh)", k:350,p:13,c:65,f:3},
- {sn:"Kartoffeln", n:"Kartoffeln (400 g)", k:280,p:8,c:60,f:0},
- {sn:"Süßkartoffeln", n:"Süßkartoffeln (350 g)", k:300,p:6,c:70,f:0},
- {sn:"Couscous", n:"Couscous (80 g roh)", k:285,p:10,c:56,f:1},
- {sn:"Quinoa", n:"Quinoa (80 g roh)", k:295,p:11,c:50,f:5},
- {sn:"Bulgur", n:"Bulgur (80 g roh)", k:275,p:10,c:55,f:1},
- {sn:"Vollkornbrot", n:"Vollkornbrot (2 Scheiben)", k:200,p:8,c:36,f:2},
- {sn:"Wraps", n:"2 Wraps", k:320,p:9,c:52,f:8},
- {sn:"Gnocchi", n:"Gnocchi (300 g)", k:400,p:10,c:80,f:4},
+ {sn:"Reis", n:"Reis (75 g roh)", k:265,p:5,c:58,f:1, cp:[["Reis",75,"g"]]},
+ {sn:"Vollkornnudeln", n:"Vollkornnudeln (100 g roh)", k:350,p:13,c:65,f:3, cp:[["Vollkornnudeln",100,"g"]]},
+ {sn:"Kartoffeln", n:"Kartoffeln (400 g)", k:280,p:8,c:60,f:0, cp:[["Kartoffeln",400,"g"]]},
+ {sn:"Süßkartoffeln", n:"Süßkartoffeln (350 g)", k:300,p:6,c:70,f:0, cp:[["Süßkartoffeln",350,"g"]]},
+ {sn:"Couscous", n:"Couscous (80 g roh)", k:285,p:10,c:56,f:1, cp:[["Couscous",80,"g"]]},
+ {sn:"Quinoa", n:"Quinoa (80 g roh)", k:295,p:11,c:50,f:5, cp:[["Quinoa",80,"g"]]},
+ {sn:"Bulgur", n:"Bulgur (80 g roh)", k:275,p:10,c:55,f:1, cp:[["Bulgur",80,"g"]]},
+ {sn:"Vollkornbrot", n:"Vollkornbrot (2 Scheiben)", k:200,p:8,c:36,f:2, cp:[["Vollkornbrot",2,"Scheiben"]]},
+ {sn:"Wraps", n:"2 Wraps", k:320,p:9,c:52,f:8, cp:[["Wraps",2,"Stk"]]},
+ {sn:"Gnocchi", n:"Gnocchi (300 g)", k:400,p:10,c:80,f:4, cp:[["Gnocchi",300,"g"]]},
 ];
 const HS=[
- {mid:"-Curry", k:120,p:1,c:4,f:11, zut:"Currypaste, 100 ml Kokosmilch light, Zwiebel", zub:"Anbraten, Currypaste mitrösten, Kokosmilch angießen, 10 Min köcheln.", no:["Feta"]},
- {mid:" in Tomatensauce", k:80,p:3,c:12,f:1, zut:"250 g passierte Tomaten, Zwiebel, Knoblauch, Basilikum", zub:"Zwiebel und Knoblauch anbraten, Hauptzutat dazu, Tomaten angießen, 8 Min köcheln.", no:[]},
- {mid:" asiatisch", k:70,p:3,c:6,f:4, zut:"Sojasauce, Knoblauch, Ingwer, Frühlingszwiebel, Sesam", zub:"Alles scharf in der Pfanne anbraten, mit Sojasauce ablöschen.", no:["Feta"]},
- {mid:" mediterran", k:100,p:0,c:1,f:11, zut:"1 EL Olivenöl, Zitrone, Rosmarin und Oregano", zub:"Würzen, braten oder grillen, mit Zitrone und Kräutern abschmecken.", no:[]},
- {mid:" vom Blech", k:140,p:3,c:10,f:10, zut:"Paprika, Zucchini, 1 EL Öl", zub:"Alles auf ein Blech, 20–25 Min bei 200 °C Umluft.", no:[]},
- {mid:"-Bowl", k:150,p:4,c:12,f:10, zut:"Gemüse-Mix (Brokkoli, Paprika), 1 EL Öl, Joghurt-Dip", zub:"Gemüse anbraten, alles in einer Bowl anrichten, Dip darüber.", no:[]},
+ {mid:"-Curry", k:120,p:1,c:4,f:11, zut:"Currypaste, 100 ml Kokosmilch light, Zwiebel", zub:"Anbraten, Currypaste mitrösten, Kokosmilch angießen, 10 Min köcheln.", no:["Feta"], cp:[["Currypaste",20,"g"],["Kokosmilch light",100,"ml"],["Zwiebeln",1,"Stk"]]},
+ {mid:" in Tomatensauce", k:80,p:3,c:12,f:1, zut:"250 g passierte Tomaten, Zwiebel, Knoblauch, Basilikum", zub:"Zwiebel und Knoblauch anbraten, Hauptzutat dazu, Tomaten angießen, 8 Min köcheln.", no:[], cp:[["Passierte Tomaten",250,"g"],["Zwiebeln",1,"Stk"],["Knoblauch",1,"Zehen"]]},
+ {mid:" asiatisch", k:70,p:3,c:6,f:4, zut:"Sojasauce, Knoblauch, Ingwer, Frühlingszwiebel, Sesam", zub:"Alles scharf in der Pfanne anbraten, mit Sojasauce ablöschen.", no:["Feta"], cp:[["Sojasauce",15,"ml"],["Knoblauch",1,"Zehen"],["Ingwer",10,"g"],["Frühlingszwiebeln",1,"Stk"]]},
+ {mid:" mediterran", k:100,p:0,c:1,f:11, zut:"1 EL Olivenöl, Zitrone, Rosmarin und Oregano", zub:"Würzen, braten oder grillen, mit Zitrone und Kräutern abschmecken.", no:[], cp:[["Olivenöl",10,"ml"],["Zitronen",0.5,"Stk"]]},
+ {mid:" vom Blech", k:140,p:3,c:10,f:10, zut:"Paprika, Zucchini, 1 EL Öl", zub:"Alles auf ein Blech, 20–25 Min bei 200 °C Umluft.", no:[], cp:[["Paprika",1,"Stk"],["Zucchini",1,"Stk"],["Olivenöl",10,"ml"]]},
+ {mid:"-Bowl", k:150,p:4,c:12,f:10, zut:"Gemüse-Mix (Brokkoli, Paprika), 1 EL Öl, Joghurt-Dip", zub:"Gemüse anbraten, alles in einer Bowl anrichten, Dip darüber.", no:[], cp:[["Brokkoli",0.5,"Stk"],["Paprika",1,"Stk"],["Olivenöl",10,"ml"],["Joghurt 1,5 %",50,"g"]]},
 ];
 const FB=[
- {sn:"Skyr", n:"Skyr (300 g)", k:190,p:33,c:12,f:1, sw:1},
- {sn:"Magerquark", n:"Magerquark (250 g)", k:170,p:30,c:10,f:1, sw:1},
- {sn:"Porridge", n:"Porridge (60 g Haferflocken, 200 ml Milch)", k:330,p:13,c:50,f:7, sw:1},
- {sn:"Overnight Oats", n:"Overnight Oats (60 g Hafer, 30 g Proteinpulver, 200 ml Milch)", k:440,p:37,c:52,f:8, sw:1},
- {sn:"Protein-Pancakes", n:"Protein-Pancakes (50 g Hafer, 2 Eier, 20 g Proteinpulver)", k:400,p:35,c:38,f:12, sw:1},
- {sn:"Griechischer Joghurt", n:"Griechischer Joghurt 2 % (250 g)", k:180,p:20,c:10,f:5, sw:1},
- {sn:"Proteinshake", n:"Proteinshake (30 g Pulver, 300 ml Milch)", k:230,p:30,c:14,f:5, sw:1},
- {sn:"Rührei", n:"Rührei (3 Eier)", k:215,p:19,c:1,f:15, sw:0},
- {sn:"Hüttenkäse", n:"Hüttenkäse (200 g)", k:200,p:24,c:6,f:8, sw:2},
- {sn:"Vollkornbrot mit Frischkäse", n:"2 Scheiben Vollkornbrot + Frischkäse", k:280,p:12,c:38,f:8, sw:0},
+ {sn:"Skyr", n:"Skyr (300 g)", k:190,p:33,c:12,f:1, sw:1, cp:[["Skyr",300,"g"]]},
+ {sn:"Magerquark", n:"Magerquark (250 g)", k:170,p:30,c:10,f:1, sw:1, cp:[["Magerquark",250,"g"]]},
+ {sn:"Porridge", n:"Porridge (60 g Haferflocken, 200 ml Milch)", k:330,p:13,c:50,f:7, sw:1, cp:[["Haferflocken",60,"g"],["Milch 1,5 %",200,"ml"]]},
+ {sn:"Overnight Oats", n:"Overnight Oats (60 g Hafer, 30 g Proteinpulver, 200 ml Milch)", k:440,p:37,c:52,f:8, sw:1, cp:[["Haferflocken",60,"g"],["Proteinpulver",30,"g"],["Milch 1,5 %",200,"ml"]]},
+ {sn:"Protein-Pancakes", n:"Protein-Pancakes (50 g Hafer, 2 Eier, 20 g Proteinpulver)", k:400,p:35,c:38,f:12, sw:1, cp:[["Haferflocken",50,"g"],["Eier",2,"Stk"],["Proteinpulver",20,"g"]]},
+ {sn:"Griechischer Joghurt", n:"Griechischer Joghurt 2 % (250 g)", k:180,p:20,c:10,f:5, sw:1, cp:[["Griechischer Joghurt 2 %",250,"g"]]},
+ {sn:"Proteinshake", n:"Proteinshake (30 g Pulver, 300 ml Milch)", k:230,p:30,c:14,f:5, sw:1, cp:[["Proteinpulver",30,"g"],["Milch 1,5 %",300,"ml"]]},
+ {sn:"Rührei", n:"Rührei (3 Eier)", k:215,p:19,c:1,f:15, sw:0, cp:[["Eier",3,"Stk"],["Butter",5,"g"]]},
+ {sn:"Hüttenkäse", n:"Hüttenkäse (200 g)", k:200,p:24,c:6,f:8, sw:2, cp:[["Hüttenkäse",200,"g"]]},
+ {sn:"Vollkornbrot mit Frischkäse", n:"2 Scheiben Vollkornbrot + Frischkäse", k:280,p:12,c:38,f:8, sw:0, cp:[["Vollkornbrot",2,"Scheiben"],["Frischkäse",50,"g"]]},
 ];
 const FT=[
- {n:"Banane", k:90,p:1,c:23,f:0, sw:1},
- {n:"Beeren (150 g)", k:60,p:1,c:12,f:0, sw:1},
- {n:"Apfel + Zimt", k:80,p:0,c:20,f:0, sw:1},
- {n:"Honig + Zimt", k:60,p:0,c:17,f:0, sw:1},
- {n:"Nüssen (20 g)", k:130,p:4,c:3,f:11, sw:1},
- {n:"Erdnussbutter (1 EL)", k:95,p:4,c:3,f:8, sw:1},
- {n:"Leinsamen + Beeren", k:110,p:3,c:10,f:6, sw:1},
- {n:"Tomate + Schnittlauch", k:25,p:1,c:4,f:0, sw:0},
- {n:"Käse (30 g) + Gurke", k:110,p:8,c:1,f:9, sw:0},
- {n:"Putenschinken (50 g) + Tomate", k:80,p:12,c:2,f:3, sw:0, nv:1},
+ {n:"Banane", k:90,p:1,c:23,f:0, sw:1, cp:[["Bananen",1,"Stk"]]},
+ {n:"Beeren (150 g)", k:60,p:1,c:12,f:0, sw:1, cp:[["Beeren (TK)",150,"g"]]},
+ {n:"Apfel + Zimt", k:80,p:0,c:20,f:0, sw:1, cp:[["Äpfel",1,"Stk"]]},
+ {n:"Honig + Zimt", k:60,p:0,c:17,f:0, sw:1, cp:[["Honig",20,"g"]]},
+ {n:"Nüssen (20 g)", k:130,p:4,c:3,f:11, sw:1, cp:[["Nüsse",20,"g"]]},
+ {n:"Erdnussbutter (1 EL)", k:95,p:4,c:3,f:8, sw:1, cp:[["Erdnussbutter",15,"g"]]},
+ {n:"Leinsamen + Beeren", k:110,p:3,c:10,f:6, sw:1, cp:[["Leinsamen",10,"g"],["Beeren (TK)",100,"g"]]},
+ {n:"Tomate + Schnittlauch", k:25,p:1,c:4,f:0, sw:0, cp:[["Tomaten",1,"Stk"]]},
+ {n:"Käse (30 g) + Gurke", k:110,p:8,c:1,f:9, sw:0, cp:[["Käse",30,"g"],["Gurken",0.3,"Stk"]]},
+ {n:"Putenschinken (50 g) + Tomate", k:80,p:12,c:2,f:3, sw:0, nv:1, cp:[["Putenschinken",50,"g"],["Tomaten",1,"Stk"]]},
 ];
 const SB=[
- {sn:"Magerquark", n:"Magerquark (250 g)", k:170,p:30,c:10,f:1},
- {sn:"Skyr", n:"Skyr (150 g)", k:95,p:17,c:6,f:0},
- {sn:"Hüttenkäse", n:"Hüttenkäse (100 g)", k:100,p:12,c:3,f:4},
- {sn:"Proteinshake", n:"Proteinshake (30 g Pulver, Wasser)", k:115,p:25,c:2,f:1},
- {sn:"Reiswaffeln", n:"3 Reiswaffeln", k:110,p:2,c:24,f:0},
- {sn:"Gemüsesticks", n:"Gemüsesticks (Paprika, Gurke, Karotte)", k:40,p:2,c:8,f:0},
- {sn:"Knäckebrot", n:"2 Vollkorn-Knäckebrote", k:70,p:2,c:13,f:0},
- {sn:"Apfel", n:"1 Apfel", k:80,p:0,c:20,f:0},
+ {sn:"Magerquark", n:"Magerquark (250 g)", k:170,p:30,c:10,f:1, cp:[["Magerquark",250,"g"]]},
+ {sn:"Skyr", n:"Skyr (150 g)", k:95,p:17,c:6,f:0, cp:[["Skyr",150,"g"]]},
+ {sn:"Hüttenkäse", n:"Hüttenkäse (100 g)", k:100,p:12,c:3,f:4, cp:[["Hüttenkäse",100,"g"]]},
+ {sn:"Proteinshake", n:"Proteinshake (30 g Pulver, Wasser)", k:115,p:25,c:2,f:1, cp:[["Proteinpulver",30,"g"]]},
+ {sn:"Reiswaffeln", n:"3 Reiswaffeln", k:110,p:2,c:24,f:0, cp:[["Reiswaffeln",3,"Stk"]]},
+ {sn:"Gemüsesticks", n:"Gemüsesticks (Paprika, Gurke, Karotte)", k:40,p:2,c:8,f:0, cp:[["Paprika",0.5,"Stk"],["Gurken",0.3,"Stk"],["Karotten",1,"Stk"]]},
+ {sn:"Knäckebrot", n:"2 Vollkorn-Knäckebrote", k:70,p:2,c:13,f:0, cp:[["Knäckebrot",2,"Scheiben"]]},
+ {sn:"Apfel", n:"1 Apfel", k:80,p:0,c:20,f:0, cp:[["Äpfel",1,"Stk"]]},
 ];
 const ST=[
- {n:"Beeren (100 g)", k:40,p:1,c:8,f:0, typ:"sw"},
- {n:"Honig (1 TL)", k:30,p:0,c:8,f:0, typ:"sw"},
- {n:"Nüssen (20 g)", k:130,p:4,c:3,f:11, typ:"sw"},
- {n:"Erdnussbutter (1 EL)", k:95,p:4,c:3,f:8, typ:"sw"},
- {n:"Hummus (2 EL)", k:100,p:3,c:6,f:7, typ:"sav"},
- {n:"1 gekochtem Ei", k:70,p:6,c:0,f:5, typ:"sav"},
- {n:"Käse (30 g)", k:110,p:8,c:1,f:9, typ:"sav"},
- {n:"1 Banane", k:90,p:1,c:23,f:0, typ:"sw"},
+ {n:"Beeren (100 g)", k:40,p:1,c:8,f:0, typ:"sw", cp:[["Beeren (TK)",100,"g"]]},
+ {n:"Honig (1 TL)", k:30,p:0,c:8,f:0, typ:"sw", cp:[["Honig",10,"g"]]},
+ {n:"Nüssen (20 g)", k:130,p:4,c:3,f:11, typ:"sw", cp:[["Nüsse",20,"g"]]},
+ {n:"Erdnussbutter (1 EL)", k:95,p:4,c:3,f:8, typ:"sw", cp:[["Erdnussbutter",15,"g"]]},
+ {n:"Hummus (2 EL)", k:100,p:3,c:6,f:7, typ:"sav", cp:[["Hummus",30,"g"]]},
+ {n:"1 gekochtem Ei", k:70,p:6,c:0,f:5, typ:"sav", cp:[["Eier",1,"Stk"]]},
+ {n:"Käse (30 g)", k:110,p:8,c:1,f:9, typ:"sav", cp:[["Käse",30,"g"]]},
+ {n:"1 Banane", k:90,p:1,c:23,f:0, typ:"sw", cp:[["Bananen",1,"Stk"]]},
 ];
 let POOL=null;
 function buildPool(){
@@ -767,14 +816,16 @@ function buildPool(){
       name:p.sn+st.mid+" mit "+c.sn,
       veg:!!p.veg, kcal:p.k+c.k+st.k, prot:p.p+c.p+st.p, carb:p.c+c.c+st.c, fat:p.f+c.f+st.f,
       zutaten:p.n+", "+c.n+", "+st.zut,
-      zub:st.zub+" Dazu "+c.sn+" nach Packungsanleitung."
+      zub:st.zub+" Dazu "+c.sn+" nach Packungsanleitung.",
+      comps:p.cp.concat(c.cp, st.cp)
     });
   })));
   const fr=[];
   FB.forEach(b=>FT.forEach(t=>{
     if(b.sw!==2 && t.sw!==b.sw) return;
     fr.push({name:b.sn+" mit "+t.n, veg:!t.nv, kcal:b.k+t.k, prot:b.p+t.p, carb:b.c+t.c, fat:b.f+t.f,
-      zutaten:b.n+", "+t.n, zub:"Basis zubereiten bzw. verrühren, Topping dazu – fertig in wenigen Minuten."});
+      zutaten:b.n+", "+t.n, zub:"Basis zubereiten bzw. verrühren, Topping dazu – fertig in wenigen Minuten.",
+      comps:b.cp.concat(t.cp)});
   }));
   const savBases=["Reiswaffeln","Gemüsesticks","Knäckebrot"];
   const sn=[];
@@ -784,7 +835,8 @@ function buildPool(){
     if(b.sn==="Gemüsesticks" && !sav) return;
     if(b.sn==="Apfel" && (sav||t.n.indexOf("Banane")>-1||t.n.indexOf("Beeren")>-1)) return;
     sn.push({name:b.sn+" mit "+t.n, veg:true, kcal:b.k+t.k, prot:b.p+t.p, carb:b.c+t.c, fat:b.f+t.f,
-      zutaten:b.n+", "+t.n, zub:"Zusammenstellen – fertig."});
+      zutaten:b.n+", "+t.n, zub:"Zusammenstellen – fertig.",
+      comps:b.cp.concat(t.cp)});
   }));
   POOL={fr:fr, mi:haupt, ab:haupt, sn:sn};
   POOL.total=fr.length+haupt.length+sn.length;
@@ -882,15 +934,30 @@ async function loadAll(){
     const r = await stGet("plan-salt");
     if(r){ planSalt=JSON.parse(r)||{date:null}; }
   }catch(e){}
+  try{
+    const r = await stGet("week-plan");
+    if(r){ weekPlan=JSON.parse(r)||null; }
+  }catch(e){}
+  try{
+    const r = await stGet("music-data");
+    if(r){ musicUrl=(JSON.parse(r)||{}).url||null; }
+  }catch(e){}
   if(!profile){ openProfile(true); }
   else{ checkAdaptive(); }
+  if(new Date().getDay()===0 && (!weekPlan || weekPlan.week!==isoWeekKey(Date.now()))){
+    const b=document.getElementById("adaptBanner");
+    if(!b.classList.contains("show")){
+      b.innerHTML="🛒 <b>Sonntag – Planungszeit!</b> Erstell im Einkauf-Tab deinen Wochenplan, dann steht auch die Einkaufsliste.";
+      b.classList.add("show");
+    }
+  }
   renderAll();
 }
 async function saveKey(key,val,label){
   const ok = await stSet(key, JSON.stringify(val));
   if(label && ok) showToast(label);
 }
-function renderAll(){ renderTrain(); renderMeals(); renderWeights(); renderDay(); renderPlan(); renderStats(); renderPhotos(); }
+function renderAll(){ renderTrain(); renderMeals(); renderWeights(); renderDay(); renderPlan(); renderStats(); renderPhotos(); renderShop(); renderMusic(); }
 
 /* ================= PROFIL / TDEE / ADAPTIV ================= */
 function calcBMR(p){ return 10*p.weight + 6.25*p.height - 5*p.age + (p.sex==="m"?5:-161); }
@@ -1016,7 +1083,17 @@ function renderTrain(){
       </div>
       <div class="ex-meta">${slot.muscles} · <span class="last">${last}</span></div>
       <div class="ex-actions">
-        ${Array.from({length:setCount(ex)},(_,si)=>`<input class="inp set-input" placeholder="Satz ${si+1}" value="${esc((state.weights[slot.id]||[])[si]||"")}" oninput="setW('${slot.id}',${si},this.value)">`).join("")}
+        ${Array.from({length:setCount(ex)},(_,si)=>{
+          const cur=parseSet((state.weights[slot.id]||[])[si]);
+          return `<div class="set-group">
+            <div class="set-label">Satz ${si+1}</div>
+            <div class="set-row">
+              <input class="inp set-input" placeholder="kg" inputmode="decimal" value="${esc(cur.w)}" oninput="setW('${slot.id}',${si},'w',this.value)">
+              <span class="set-x">×</span>
+              <input class="inp set-input reps" placeholder="Wdh." inputmode="numeric" value="${esc(cur.r)}" oninput="setW('${slot.id}',${si},'r',this.value)">
+            </div>
+          </div>`;
+        }).join("")}
       </div>
       <div class="ex-actions">
         <a class="btn-video" href="https://www.youtube.com/results?search_query=${ex.video}" target="_blank" rel="noopener">
@@ -1099,53 +1176,6 @@ async function delMeal(idx){
   const k=todayKey();
   if(meals[k]){ meals[k].splice(idx,1); await saveKey("nutrition-data",meals); renderMeals(); renderStats(); }
 }
-/* ================= SCHLAUKORB-IMPORT =================
-   Liest den Wochenplan der Schlaukorb-App (gleiche Domain,
-   localStorage-Key "schlaukorb_export") und trägt Gerichte
-   mit kcal + Protein pro Portion ins Tagebuch ein. */
-function skRead(){
-  try{
-    if(!lsAvail()) return null;
-    const raw = localStorage.getItem("schlaukorb_export");
-    if(!raw) return null;
-    const d = JSON.parse(raw);
-    return (d && d.source === "schlaukorb" && Array.isArray(d.week) && d.week.length) ? d : null;
-  }catch(e){ return null; }
-}
-function skTodayIdx(week){
-  const wd = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date().getDay()];
-  const i = week.findIndex(m => m.day === wd);
-  return i >= 0 ? i : -1;
-}
-function renderSk(){
-  const card = document.getElementById("skCard");
-  if(!card) return;
-  const d = skRead();
-  if(!d){ card.style.display = "none"; return; }
-  card.style.display = "block";
-  const ti = skTodayIdx(d.week);
-  document.getElementById("skContent").innerHTML =
-    d.week.map((m, i) => `
-      <div class="meal-item" style="${i === ti ? 'border-left:3px solid var(--orange);padding-left:8px;' : ''}">
-        <div class="meal-name">${esc(m.day)}${i === ti ? ' · <span style="color:var(--orange);">heute</span>' : ''}<br>
-          <span style="color:var(--muted);font-weight:400;font-size:12px;">${esc(m.name)} · ${fmt(m.kcal||0)} kcal · ${fmt(m.protein||0)} g Protein</span>
-        </div>
-        <button class="btn-small" onclick="skAdd(${i})">＋</button>
-      </div>`).join("") +
-    `<div style="font-size:11.5px;color:var(--muted);margin-top:8px;">Stand ${new Date(d.updated).toLocaleDateString("de-DE")} · Werte pro Portion (Schätzung aus Schlaukorb, Fett/KH unbekannt).</div>`;
-}
-async function skAdd(i){
-  const d = skRead();
-  if(!d || !d.week[i]) return;
-  const m = d.week[i];
-  const cat = (document.getElementById("skCat") || {}).value || "ab";
-  const k = todayKey();
-  (meals[k] = meals[k] || []).push({name:m.name, kcal:m.kcal||0, prot:m.protein||0, fat:0, carb:0, cat});
-  await saveKey("nutrition-data", meals, m.name + " eingetragen! 🧺");
-  renderMeals(); renderStats();
-}
-window.addEventListener("storage", e => { if(e.key === "schlaukorb_export") renderSk(); });
-
 function bar(id,val,goal){
   const el=document.getElementById(id);
   el.style.width=Math.min(100,goal?val/goal*100:0)+"%";
@@ -1194,7 +1224,6 @@ function renderMeals(){
   });
   el.innerHTML=html;
   updateBilanz();
-  renderSk();
 }
 
 /* ================= LEBENSMITTEL-SUCHE ================= */
@@ -1896,8 +1925,208 @@ function renderMonth(){
   } else el.textContent="–";
 }
 
+/* ================= EINKAUF & WOCHENPLAN ================= */
+let weekPlan=null;
+const PRICES={
+ "Hähnchenbrust":{u:"kg",p:7.5,s:"Aldi/Lidl",g:"fleisch"},
+ "Putenbrust":{u:"kg",p:8.5,s:"Aldi/Lidl",g:"fleisch"},
+ "Rinderhack 5 %":{u:"kg",p:9.9,s:"Kaufland/Lidl",g:"fleisch"},
+ "Lachsfilet (TK)":{u:"kg",p:14.0,s:"Aldi/Lidl (TK)",g:"fleisch"},
+ "Thunfisch-Dose":{u:"Stk",p:1.29,s:"Aldi/Lidl",g:"fleisch"},
+ "Garnelen (TK)":{u:"kg",p:12.0,s:"Lidl (TK)",g:"fleisch"},
+ "Putenschinken":{u:"kg",p:10.0,s:"Discounter",g:"fleisch"},
+ "Eier":{u:"Stk",p:0.22,s:"Discounter",g:"milch"},
+ "Tofu":{u:"kg",p:4.5,s:"Aldi/Lidl",g:"milch"},
+ "Feta":{u:"kg",p:6.5,s:"Lidl (Hirtenkäse)",g:"milch"},
+ "Skyr":{u:"kg",p:2.2,s:"Aldi/Lidl",g:"milch"},
+ "Magerquark":{u:"kg",p:1.7,s:"Discounter",g:"milch"},
+ "Milch 1,5 %":{u:"l",p:1.05,s:"Discounter",g:"milch"},
+ "Griechischer Joghurt 2 %":{u:"kg",p:2.2,s:"Lidl",g:"milch"},
+ "Joghurt 1,5 %":{u:"kg",p:1.8,s:"Discounter",g:"milch"},
+ "Hüttenkäse":{u:"kg",p:3.6,s:"Discounter",g:"milch"},
+ "Frischkäse":{u:"kg",p:4.0,s:"Discounter",g:"milch"},
+ "Butter":{u:"kg",p:7.0,s:"Discounter",g:"milch"},
+ "Käse":{u:"kg",p:8.0,s:"Discounter",g:"milch"},
+ "Hummus":{u:"kg",p:5.5,s:"Lidl",g:"milch"},
+ "Reis":{u:"kg",p:2.2,s:"Discounter",g:"trocken"},
+ "Vollkornnudeln":{u:"kg",p:1.8,s:"Discounter",g:"trocken"},
+ "Couscous":{u:"kg",p:2.8,s:"Discounter",g:"trocken"},
+ "Quinoa":{u:"kg",p:6.0,s:"Kaufland/dm",g:"trocken"},
+ "Bulgur":{u:"kg",p:2.5,s:"Discounter",g:"trocken"},
+ "Haferflocken":{u:"kg",p:1.1,s:"Discounter",g:"trocken"},
+ "Rote Linsen":{u:"kg",p:2.5,s:"Discounter",g:"trocken"},
+ "Kichererbsen-Dose":{u:"Stk",p:0.79,s:"Discounter",g:"trocken"},
+ "Reiswaffeln":{u:"Stk",p:0.08,s:"Discounter",g:"trocken"},
+ "Knäckebrot":{u:"Scheiben",p:0.06,s:"Discounter",g:"trocken"},
+ "Vollkornbrot":{u:"Scheiben",p:0.12,s:"Discounter",g:"trocken"},
+ "Wraps":{u:"Stk",p:0.42,s:"Discounter",g:"trocken"},
+ "Gnocchi":{u:"kg",p:2.6,s:"Discounter",g:"trocken"},
+ "Honig":{u:"kg",p:5.0,s:"Discounter",g:"trocken"},
+ "Nüsse":{u:"kg",p:10.0,s:"Discounter",g:"trocken"},
+ "Erdnussbutter":{u:"kg",p:6.5,s:"Lidl",g:"trocken"},
+ "Leinsamen":{u:"kg",p:3.0,s:"dm/Discounter",g:"trocken"},
+ "Proteinpulver":{u:"kg",p:15.0,s:"Online/dm",g:"trocken"},
+ "Currypaste":{u:"kg",p:9.0,s:"Asia-Regal",g:"trocken"},
+ "Kokosmilch light":{u:"l",p:2.8,s:"Discounter",g:"trocken"},
+ "Passierte Tomaten":{u:"kg",p:1.0,s:"Discounter",g:"trocken"},
+ "Sojasauce":{u:"l",p:4.0,s:"Discounter",g:"trocken"},
+ "Olivenöl":{u:"l",p:8.0,s:"Discounter",g:"trocken"},
+ "Kartoffeln":{u:"kg",p:1.2,s:"Discounter",g:"obst"},
+ "Süßkartoffeln":{u:"kg",p:2.5,s:"Kaufland",g:"obst"},
+ "Bananen":{u:"Stk",p:0.25,s:"Discounter",g:"obst"},
+ "Äpfel":{u:"Stk",p:0.45,s:"Discounter",g:"obst"},
+ "Beeren (TK)":{u:"kg",p:5.6,s:"Discounter (TK)",g:"obst"},
+ "Tomaten":{u:"Stk",p:0.5,s:"Discounter",g:"obst"},
+ "Gurken":{u:"Stk",p:0.79,s:"Discounter",g:"obst"},
+ "Paprika":{u:"Stk",p:0.8,s:"Discounter",g:"obst"},
+ "Zucchini":{u:"Stk",p:0.9,s:"Discounter",g:"obst"},
+ "Brokkoli":{u:"Stk",p:1.29,s:"Discounter",g:"obst"},
+ "Karotten":{u:"Stk",p:0.15,s:"Discounter",g:"obst"},
+ "Zwiebeln":{u:"Stk",p:0.15,s:"Discounter",g:"obst"},
+ "Knoblauch":{u:"Zehen",p:0.08,s:"Discounter",g:"obst"},
+ "Ingwer":{u:"g",p:0.008,s:"Discounter",g:"obst"},
+ "Frühlingszwiebeln":{u:"Stk",p:0.3,s:"Discounter",g:"obst"},
+ "Zitronen":{u:"Stk",p:0.5,s:"Discounter",g:"obst"},
+};
+const GRPL={fleisch:"🥩 Fleisch & Fisch", milch:"🥛 Kühlregal & Eier", trocken:"🌾 Trockenwaren & Konserven", obst:"🥦 Obst & Gemüse", sonst:"🧂 Sonstiges"};
+function rndPick(cat,useFav){
+  const favs=recFavs.filter(f=>(f.cat||"")===cat && f.comps);
+  if(useFav && favs.length) return favs[Math.floor(Math.random()*favs.length)];
+  const P=buildPool()[cat];
+  return P[Math.floor(Math.random()*P.length)];
+}
+async function genWeek(useFav){
+  const days=[];
+  for(let d=0;d<7;d++){
+    days.push({fr:rndPick("fr",useFav), mi:rndPick("mi",useFav), ab:rndPick("ab",useFav), sn:rndPick("sn",useFav)});
+  }
+  weekPlan={created:Date.now(), week:isoWeekKey(Date.now()), days:days, checked:{}};
+  await saveKey("week-plan",weekPlan);
+  renderShop();
+  showToast("Neuer Wochenplan erstellt! 🛒");
+}
+async function rerollMeal(d,cat){
+  if(!weekPlan)return;
+  weekPlan.days[d][cat]=rndPick(cat,false);
+  await saveKey("week-plan",weekPlan);
+  renderShop();
+}
+async function toggleItem(name){
+  if(!weekPlan)return;
+  weekPlan.checked=weekPlan.checked||{};
+  weekPlan.checked[name]=!weekPlan.checked[name];
+  await saveKey("week-plan",weekPlan);
+  renderShop();
+}
+function shoppingAgg(){
+  const agg={};
+  if(!weekPlan) return agg;
+  weekPlan.days.forEach(day=>["fr","mi","ab","sn"].forEach(c=>{
+    const r=day[c]; if(!r||!r.comps)return;
+    r.comps.forEach(cp=>{
+      const n=cp[0], amt=cp[1], unit=cp[2];
+      if(!agg[n]) agg[n]={n:n, amt:0, unit:unit};
+      agg[n].amt+=amt;
+    });
+  }));
+  return agg;
+}
+function fmtAmt(a,u){
+  if(u==="g"&&a>=1000) return (a/1000).toLocaleString("de-DE",{maximumFractionDigits:2})+" kg";
+  if(u==="ml"&&a>=1000) return (a/1000).toLocaleString("de-DE",{maximumFractionDigits:2})+" l";
+  if(u==="Stk"||u==="Scheiben"||u==="Zehen") return (Math.round(a*10)/10).toLocaleString("de-DE")+" "+u;
+  return Math.round(a)+" "+u;
+}
+function itemCost(n,amt,unit){
+  const pr=PRICES[n]; if(!pr) return null;
+  let base=amt;
+  if((pr.u==="kg"&&unit==="g")||(pr.u==="l"&&unit==="ml")) base=amt/1000;
+  return base*pr.p;
+}
+const eur=v=>v.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+function renderShop(){
+  const pl=document.getElementById("weekPlanBox"), sl=document.getElementById("shopList");
+  if(!pl) return;
+  if(!weekPlan){
+    pl.innerHTML='<div class="empty">Noch kein Wochenplan – tippe auf 🎲, um deine Woche zu erstellen.</div>';
+    sl.innerHTML='<div class="empty">Die Einkaufsliste erscheint, sobald ein Wochenplan existiert.</div>';
+    document.getElementById("shopTotal").textContent="";
+    return;
+  }
+  const DN=["Mo","Di","Mi","Do","Fr","Sa","So"];
+  const CI={fr:"🌅",mi:"☀️",ab:"🌙",sn:"🍎"};
+  pl.innerHTML=weekPlan.days.map((day,d)=>`
+    <div style="border-bottom:1px solid #3A3A3E;padding:8px 0;">
+      <div style="font-weight:900;color:var(--orange);font-size:13px;">${DN[d]}</div>
+      ${["fr","mi","ab","sn"].map(c=>`
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 0;">
+          <span>${CI[c]}</span><span style="flex:1;">${esc(day[c].name)} <span style="color:var(--muted);">· ${fmt(day[c].kcal)} kcal</span></span>
+          <button class="meal-del" style="font-size:13px;padding:2px 6px;" onclick="rerollMeal(${d},'${c}')">🎲</button>
+        </div>`).join("")}
+    </div>`).join("");
+  const agg=shoppingAgg();
+  const groups={};
+  let total=0;
+  Object.keys(agg).forEach(k=>{
+    const it=agg[k];
+    const pr=PRICES[it.n]||{g:"sonst",s:"–"};
+    const cost=itemCost(it.n,it.amt,it.unit);
+    if(cost!==null) total+=cost;
+    const grp=pr.g||"sonst";
+    (groups[grp]=groups[grp]||[]).push({n:it.n,amt:it.amt,unit:it.unit,cost:cost,store:pr.s});
+  });
+  sl.innerHTML=Object.keys(GRPL).filter(g=>groups[g]).map(g=>`
+    <div style="margin-top:10px;">
+      <div style="font-weight:900;font-size:12.5px;color:var(--muted);margin-bottom:2px;">${GRPL[g]}</div>
+      ${groups[g].sort((a,b)=>a.n.localeCompare(b.n)).map(it=>{
+        const done=weekPlan.checked&&weekPlan.checked[it.n];
+        return `<div class="meal-item" style="cursor:pointer;${done?"opacity:.45;":""}" onclick="toggleItem('${it.n.replace(/'/g,"")}')">
+          <div class="meal-name" style="${done?"text-decoration:line-through;":""}">${done?"☑":"☐"} ${esc(it.n)} · ${fmtAmt(it.amt,it.unit)}</div>
+          <div style="text-align:right;">
+            <div class="meal-kcal">${it.cost!==null?"~"+eur(it.cost):""}</div>
+            <div style="font-size:10px;color:var(--muted);">${esc(it.store)}</div>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`).join("");
+  document.getElementById("shopTotal").innerHTML="Geschätzte Gesamtkosten: <b style='color:var(--orange)'>~"+eur(total)+"</b> für die ganze Woche";
+}
+
+/* ================= MUSIK (SPOTIFY EMBED) ================= */
+let musicUrl=null;
+function toggleMusic(){
+  const b=document.getElementById("musicBox");
+  const open=b.style.display!=="none";
+  b.style.display=open?"none":"block";
+  document.getElementById("musicArrow").textContent=open?"▼":"▲";
+  document.getElementById("musicToggleLbl").textContent=open?"Anzeigen":"Ausblenden";
+}
+function parseSpotify(u){
+  const m=String(u||"").match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|track|artist)\/([A-Za-z0-9]+)/);
+  return m?{type:m[1], id:m[2]}:null;
+}
+async function setMusic(u){
+  const p=parseSpotify(u);
+  if(!p){ showToast("Kein gültiger Spotify-Link","error"); return; }
+  musicUrl=u;
+  await saveKey("music-data",{url:u});
+  document.getElementById("musicUrl").value="";
+  renderMusic();
+  showToast("Playlist geladen! 🎵");
+}
+function renderMusic(){
+  const el=document.getElementById("musicPlayer");
+  if(!el) return;
+  const p=parseSpotify(musicUrl);
+  if(!p){ el.innerHTML=""; return; }
+  const h=p.type==="track"?152:352;
+  el.innerHTML=`<iframe style="border-radius:12px;border:0;" src="https://open.spotify.com/embed/${p.type}/${p.id}?theme=0" width="100%" height="${h}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+  const box=document.getElementById("musicBox");
+  if(box.style.display==="none") toggleMusic();
+}
+
 /* ================= BACKUP ================= */
-const BK_KEYS=["workout-data","nutrition-data","bodyweight-data","day-data","exercise-config","favs-data","profile-data","achieve-data","challenge-data","recipe-favs","plan-salt"];
+const BK_KEYS=["workout-data","nutrition-data","bodyweight-data","day-data","exercise-config","favs-data","profile-data","achieve-data","challenge-data","recipe-favs","plan-salt","week-plan","music-data"];
 async function exportData(){
   const out={_app:"fitness-tracker",_ts:Date.now()};
   for(const k of BK_KEYS){ const v=await stGet(k); if(v) out[k]=v; }
@@ -1940,7 +2169,7 @@ async function importData(){
 
 /* ================= UI ================= */
 function showTab(t){
-  ["train","kcal","plan","weight","stats","hist"].forEach(x=>{
+  ["train","kcal","plan","weight","stats","shop","hist"].forEach(x=>{
     document.getElementById("view-"+x).classList.toggle("active",x===t);
     document.getElementById("tab-"+x).classList.toggle("active",x===t);
   });
