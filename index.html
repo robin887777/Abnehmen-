@@ -1625,15 +1625,25 @@ function renderHistory(){
     const d=days[k];
     const date=new Date(k+"T12:00:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});
     const lines=[];
-    d.workouts.forEach(h=>lines.push("🏋️ "+(h.day?h.day+"-Training":"Training")+": "+h.exercises.map(e=>esc(e.name)+(wStr(e.weight)?" ("+wStr(e.weight)+")":"")).join(", ")));
+    const workoutLines=d.workouts.map(h=>
+      `<div style="display:flex;align-items:center;gap:6px;">
+        <span style="flex:1;">🏋️ ${(h.day?h.day+"-Training":"Training")+": "+h.exercises.map(e=>esc(e.name)+(wStr(e.weight)?" ("+wStr(e.weight)+")":"")).join(", ")}</span>
+        <button class="meal-del" style="font-size:13px;padding:2px 6px;" onclick="delHistory(${h.ts})">✕</button>
+      </div>`);
     d.acts.forEach(a=>lines.push("⚽ "+esc(a.name)+(a.kcal?" · "+fmt(a.kcal)+" kcal":"")));
     if(d.mealKcal)lines.push("🍽️ Gegessen: "+fmt(d.mealKcal)+" kcal");
     if(d.burned)lines.push("🔥 Verbrauch: "+fmt(d.burned)+" kcal");
     if(d.steps)lines.push("👟 "+fmt(d.steps)+" Schritte");
     if(d.water)lines.push("💧 "+fmt1(d.water*0.25)+" L Wasser");
     if(d.kg)lines.push("⚖️ "+fmt1(d.kg)+" kg");
-    return `<div class="h-item"><div class="h-date">${date}</div><div class="h-detail">${lines.join("<br>")}</div></div>`;
+    return `<div class="h-item"><div class="h-date">${date}</div><div class="h-detail">${workoutLines.join("")}${lines.length?lines.join("<br>"):""}</div></div>`;
   }).join("");
+}
+
+async function delHistory(ts){
+  history=history.filter(h=>h.ts!==ts);
+  await saveKey("workout-data",{history,lastWeights},"Training gelöscht 🗑️");
+  renderHistory(); renderStats();
 }
 
 /* ================= FORTSCHRITTSFOTOS ================= */
